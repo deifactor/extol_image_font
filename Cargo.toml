@@ -1,0 +1,15 @@
+[package]
+name = "extol-image-font"
+version = "0.1.0"
+edition = "2021"
+authors = ["Ash <ext0l@catgirl.ai>"]
+categories = [ "game-development" ]
+description = "Bevy library for rendering fonts from images."
+keywords = [ "gamedev", "bevy" ]
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+bevy = { version = "0.10.1", default-features = false, features = ["bevy_render", "bevy_sprite"] }
+
+[dev-dependencies]
+bevy = { version = "0.10.1", default-features = false, features = ["bevy_asset", "bevy_render", "bevy_sprite", "bevy_core_pipeline", "x11"] }
