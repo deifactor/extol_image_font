@@ -28,6 +28,7 @@ impl Plugin for ImageFontPlugin {
     }
 }
 
+/// An image font as well as the mapping of characters to regions inside it.
 #[derive(TypeUuid, Debug, Clone, Reflect, Default)]
 #[uuid = "5f2e937e-cb24-4642-a26d-512c77bf4459"]
 pub struct ImageFont {
@@ -35,12 +36,6 @@ pub struct ImageFont {
     /// The glyph used to render `c` is contained in the part of the image
     /// pointed to by `atlas.textures[index_map[c]]`.
     index_map: HashMap<char, usize>,
-}
-
-#[derive(Debug, Clone, Reflect, Default, Component)]
-pub struct ImageFontText {
-    pub text: String,
-    pub font: Handle<ImageFont>,
 }
 
 impl ImageFont {
@@ -68,32 +63,45 @@ impl ImageFont {
     }
 }
 
-/// Not present on the initial bundle, but computed on inserted or when the
-/// text/font change.
+/// Text rendered using an [`ImageFont`].
+#[derive(Debug, Clone, Reflect, Default, Component)]
+pub struct ImageFontText {
+    pub text: String,
+    pub font: Handle<ImageFont>,
+}
+
+/// Layout information about an [`ImageFontText`]. This is computed whenever the
+/// [`ImageFontText`] is updated or created, so you don't need to manually
+/// manage this.
 #[derive(Debug, Clone, Reflect, Default, Component)]
 pub struct TextLayout {
     size: Vec2,
     glyphs: Vec<Glyph>,
 }
 
+/// A single symbol inside a piece of rendered text.
 #[derive(Debug, Clone, Reflect, FromReflect, Default)]
-pub struct Glyph {
+struct Glyph {
     /// Position relative to the entire text string (i.e., not the position
     /// inside the atlas).
     position: Vec2,
     atlas_index: usize,
 }
 
+/// All the components you need to actually render some text using
+/// `extol_image_font`.
 #[derive(Bundle, Default)]
 pub struct ImageFontBundle {
     pub text: ImageFontText,
-    pub font: Handle<ImageFont>,
     pub transform: Transform,
     pub global_transform: GlobalTransform,
     pub visibility: Visibility,
     pub computed_visibility: ComputedVisibility,
-    pub layout: TextLayout,
+    /// Where the transform point is located relative to the entire string; does
+    /// not affect the position of individual letters within the string.
     pub anchor: Anchor,
+    /// Automatically computed; you can leave this default-initialized.
+    pub layout: TextLayout,
 }
 
 /// Update all [`TextLayout`]s whose [`ImageFontText`] has changed since this
