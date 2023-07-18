@@ -189,7 +189,7 @@ pub fn extract_text_sprite(
                 image_handle_id,
                 flip_x: false,
                 flip_y: false,
-                anchor: Anchor::TopLeft.as_vec(),
+                anchor: Anchor::Center.as_vec(),
             });
         }
     }
