@@ -11,12 +11,12 @@ use bevy::{
 
 /// Plugin that enables rendering fonts.
 #[derive(Default)]
-pub struct ImageFontPlugin;
+pub struct PixelFontPlugin;
 
-impl Plugin for ImageFontPlugin {
+impl Plugin for PixelFontPlugin {
     fn build(&self, app: &mut App) {
-        app.add_asset::<ImageFont>()
-            .add_system(update_image_font_layout);
+        app.add_asset::<PixelFont>()
+            .add_system(update_pixel_font_layout);
         let render_app = app.sub_app_mut(RenderApp);
         render_app.add_system(
             extract_text_sprite
@@ -31,14 +31,14 @@ impl Plugin for ImageFontPlugin {
 /// An image font as well as the mapping of characters to regions inside it.
 #[derive(TypeUuid, Debug, Clone, Reflect, Default)]
 #[uuid = "5f2e937e-cb24-4642-a26d-512c77bf4459"]
-pub struct ImageFont {
+pub struct PixelFont {
     pub atlas: Handle<TextureAtlas>,
     /// The glyph used to render `c` is contained in the part of the image
     /// pointed to by `atlas.textures[index_map[c]]`.
     index_map: HashMap<char, usize>,
 }
 
-impl ImageFont {
+impl PixelFont {
     /// Convenience constructor. The string has newlines (but *not* spaces)
     /// removed, so you can write e.g.
     ///
@@ -49,7 +49,7 @@ impl ImageFont {
     /// ABCDEFGHIJKLMNOPQR
     /// STUVWXYZ0123456789
     /// "#;
-    /// let font = extol_image_font::ImageFont::new(atlas, chars);
+    /// let font = extol_pixel_font::PixelFont::new(atlas, chars);
     pub fn new(atlas: Handle<TextureAtlas>, string: &str) -> Self {
         let chars = string
             .chars()
@@ -63,19 +63,19 @@ impl ImageFont {
     }
 }
 
-/// Text rendered using an [`ImageFont`].
+/// Text rendered using an [`PixelFont`].
 #[derive(Debug, Clone, Reflect, Default, Component)]
-pub struct ImageFontText {
+pub struct PixelFontText {
     pub text: String,
-    pub font: Handle<ImageFont>,
+    pub font: Handle<PixelFont>,
     /// If set, overrides the height the font is rendered at. This should be an
     /// integer multiple of the 'native' height, but we allow float values for
     /// things like animations.
     pub font_height: Option<f32>,
 }
 
-/// Layout information about an [`ImageFontText`]. This is computed whenever the
-/// [`ImageFontText`] is updated or created, so you don't need to manually
+/// Layout information about an [`PixelFontText`]. This is computed whenever the
+/// [`PixelFontText`] is updated or created, so you don't need to manually
 /// manage this.
 #[derive(Debug, Clone, Reflect, Default, Component)]
 pub struct TextLayout {
@@ -96,10 +96,10 @@ struct Glyph {
 }
 
 /// All the components you need to actually render some text using
-/// `extol_image_font`.
+/// `extol_pixel_font`.
 #[derive(Bundle, Default)]
-pub struct ImageFontBundle {
-    pub text: ImageFontText,
+pub struct PixelFontBundle {
+    pub text: PixelFontText,
     pub transform: Transform,
     pub global_transform: GlobalTransform,
     pub visibility: Visibility,
@@ -111,13 +111,13 @@ pub struct ImageFontBundle {
     pub layout: TextLayout,
 }
 
-/// Update all [`TextLayout`]s whose [`ImageFontText`] has changed since this
+/// Update all [`TextLayout`]s whose [`PixelFontText`] has changed since this
 /// system last ran.
 #[allow(clippy::type_complexity)]
-pub fn update_image_font_layout(
-    fonts: Res<Assets<ImageFont>>,
+pub fn update_pixel_font_layout(
+    fonts: Res<Assets<PixelFont>>,
     atlases: Res<Assets<TextureAtlas>>,
-    mut text_query: Query<(&ImageFontText, &mut TextLayout), Changed<ImageFontText>>,
+    mut text_query: Query<(&PixelFontText, &mut TextLayout), Changed<PixelFontText>>,
 ) {
     for (text, mut layout) in &mut text_query {
         let Some(font) = fonts.get(&text.font) else { continue; };
@@ -154,14 +154,14 @@ pub fn update_image_font_layout(
 #[allow(clippy::type_complexity)]
 pub fn extract_text_sprite(
     mut extracted_sprites: ResMut<ExtractedSprites>,
-    fonts: Extract<Res<Assets<ImageFont>>>,
+    fonts: Extract<Res<Assets<PixelFont>>>,
     texture_atlases: Extract<Res<Assets<TextureAtlas>>>,
     text_query: Extract<
         Query<(
             Entity,
             &ComputedVisibility,
             &GlobalTransform,
-            &ImageFontText,
+            &PixelFontText,
             &TextLayout,
             &Anchor,
         )>,

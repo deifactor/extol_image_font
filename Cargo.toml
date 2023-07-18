@@ -1,10 +1,10 @@
 [package]
-name = "extol-image-font"
+name = "extol_pixel_font"
 version = "0.1.0"
 edition = "2021"
 authors = ["Ash <ext0l@catgirl.ai>"]
 categories = [ "game-development" ]
-description = "Bevy library for rendering fonts from images."
+description = "Render pixel fonts from PNGs in Bevy."
 keywords = [ "gamedev", "bevy" ]
 license = "MIT OR Apache-2.0"
 
