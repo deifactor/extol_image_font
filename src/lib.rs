@@ -68,6 +68,10 @@ impl ImageFont {
 pub struct ImageFontText {
     pub text: String,
     pub font: Handle<ImageFont>,
+    /// If set, overrides the height the font is rendered at. This should be an
+    /// integer multiple of the 'native' height, but we allow float values for
+    /// things like animations.
+    pub font_height: Option<f32>,
 }
 
 /// Layout information about an [`ImageFontText`]. This is computed whenever the
@@ -85,6 +89,9 @@ struct Glyph {
     /// Position relative to the entire text string (i.e., not the position
     /// inside the atlas).
     position: Vec2,
+    /// Size of this individual glyph. Might differ from the usual if the font
+    /// is scaled.
+    size: Vec2,
     atlas_index: usize,
 }
 
@@ -115,6 +122,7 @@ pub fn update_image_font_layout(
     for (text, mut layout) in &mut text_query {
         let Some(font) = fonts.get(&text.font) else { continue; };
         let Some(atlas) = atlases.get(&font.atlas) else { continue; };
+
         let mut size = Vec2::ZERO;
         let mut position = Vec2::ZERO;
         let glyphs: Vec<Glyph> = text
@@ -123,12 +131,19 @@ pub fn update_image_font_layout(
             .filter_map(|c| {
                 let atlas_index = *font.index_map.get(&c)?;
                 assert!(c != '\n', "newlines are not yet supported");
+
+                let rect = atlas.textures[atlas_index];
+                let scale = text
+                    .font_height
+                    .map_or(1.0, |height| height / rect.height());
+
                 let glyph = Glyph {
                     position,
+                    size: rect.size() * scale,
                     atlas_index,
                 };
-                position += Vec2::X * atlas.textures[atlas_index].width();
-                size = atlas.textures[atlas_index].size() + position;
+                position += Vec2::X * rect.width() * scale;
+                size = rect.size() * scale + position;
                 Some(glyph)
             })
             .collect();
@@ -170,11 +185,11 @@ pub fn extract_text_sprite(
                 transform,
                 color: Color::default(),
                 rect: Some(rect),
-                custom_size: Some(rect.size()),
+                custom_size: Some(glyph.size),
                 image_handle_id,
                 flip_x: false,
                 flip_y: false,
-                anchor: Vec2::ZERO,
+                anchor: Anchor::TopLeft.as_vec(),
             });
         }
     }

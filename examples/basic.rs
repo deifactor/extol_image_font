@@ -9,6 +9,7 @@ fn main() {
     App::new()
         .add_plugins(DefaultPlugins.build().set(ImagePlugin::default_nearest()))
         .add_plugin(ImageFontPlugin)
+        .insert_resource(Msaa::Off)
         .init_collection::<DemoAssets>()
         .add_startup_system(spawn_text)
         .insert_resource(ClearColor(Color::BLACK))
@@ -38,21 +39,22 @@ pqrstuvwxyz{|}~
     commands.spawn(Camera2dBundle::default());
     commands.spawn(ImageFontBundle {
         text: ImageFontText {
-            text: "Sphinx of black quartz, judge my vow".into(),
+            text: "Sphinx of black quartz, judge my vow!".into(),
             font: image_font.clone(),
+            font_height: Some(36.0),
         },
-        transform: Transform::from_translation(0.5 * Vec3::ONE).with_scale(1.0 * Vec3::ONE),
-        anchor: Anchor::TopLeft,
+        transform: Transform::from_translation(Vec3::new(0.2, 0.2, 0.2)),
+        anchor: Anchor::Center,
         ..default()
     });
     commands.spawn(ImageFontBundle {
         text: ImageFontText {
             text: "Sphinx of black quartz, judge my vow!".into(),
             font: image_font,
+            font_height: None,
         },
-        transform: Transform::from_translation(0.5 * Vec3::ONE + 40. * Vec3::Y)
-            .with_scale(1.0 * Vec3::ONE),
-        anchor: Anchor::TopLeft,
+        transform: Transform::from_translation(Vec3::new(0.2, 40.2, 0.2)),
+        anchor: Anchor::Center,
         ..default()
     });
 }
