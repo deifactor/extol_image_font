@@ -7,11 +7,13 @@ use extol_pixel_font::{PixelFont, PixelFontBundle, PixelFontPlugin, PixelFontTex
 
 fn main() {
     App::new()
-        .add_plugins(DefaultPlugins.build().set(ImagePlugin::default_nearest()))
-        .add_plugin(PixelFontPlugin)
+        .add_plugins((
+            DefaultPlugins.build().set(ImagePlugin::default_nearest()),
+            PixelFontPlugin,
+        ))
         .insert_resource(Msaa::Off)
         .init_collection::<DemoAssets>()
-        .add_startup_system(spawn_text)
+        .add_systems(Startup, spawn_text)
         .insert_resource(ClearColor(Color::BLACK))
         .run();
 }

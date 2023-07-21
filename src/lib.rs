@@ -16,14 +16,14 @@ pub struct PixelFontPlugin;
 impl Plugin for PixelFontPlugin {
     fn build(&self, app: &mut App) {
         app.add_asset::<PixelFont>()
-            .add_system(update_pixel_font_layout);
+            .add_systems(Update, update_pixel_font_layout);
         let render_app = app.sub_app_mut(RenderApp);
-        render_app.add_system(
+        render_app.add_systems(
+            ExtractSchedule,
             extract_text_sprite
                 .in_set(SpriteSystem::ExtractSprites)
                 .after(extract_sprites)
-                .before(queue_sprites)
-                .in_schedule(ExtractSchedule),
+                .before(queue_sprites),
         );
     }
 }
@@ -84,7 +84,7 @@ pub struct TextLayout {
 }
 
 /// A single symbol inside a piece of rendered text.
-#[derive(Debug, Clone, Reflect, FromReflect, Default)]
+#[derive(Debug, Clone, Reflect, Default)]
 struct Glyph {
     /// Position relative to the entire text string (i.e., not the position
     /// inside the atlas).
