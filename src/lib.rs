@@ -22,11 +22,17 @@ impl Plugin for PixelFontPlugin {
             ExtractSchedule,
             extract_text_sprite
                 .in_set(SpriteSystem::ExtractSprites)
+                .in_set(PixelFontSet)
                 .after(extract_sprites)
                 .before(queue_sprites),
         );
     }
 }
+
+/// Set for all systems related to [`SpriteLayerPlugin`]. This is run in the
+/// render app's [`ExtractSchedule`], *not* the main app.
+#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, SystemSet)]
+pub struct PixelFontSet;
 
 /// An image font as well as the mapping of characters to regions inside it.
 #[derive(TypeUuid, Debug, Clone, Reflect, Default)]
