@@ -16,7 +16,7 @@
         pkgs = nixpkgs.legacyPackages.${system};
         toolchain = with fenix.packages.${system}; fromToolchainFile {
           file = ./rust-toolchain.toml;
-          sha256 = "sha256-hdc9s5/xycLxDZc44maAzGdxD4ZZuo2/he0DagUmM+c=";
+          sha256 = "sha256-Ccgj5ZdhDvorEjaVIL0m9//9UIcAo7DPmAeWCzWFxUc=";
         };
       in {
         devShell = pkgs.mkShell rec {
