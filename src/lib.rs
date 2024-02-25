@@ -15,7 +15,7 @@ pub struct PixelFontPlugin;
 
 impl Plugin for PixelFontPlugin {
     fn build(&self, app: &mut App) {
-        app.add_asset::<PixelFont>()
+        app.init_asset::<PixelFont>()
             .add_systems(Update, update_pixel_font_layout);
         let render_app = app.sub_app_mut(RenderApp);
         render_app.add_systems(
@@ -35,7 +35,7 @@ impl Plugin for PixelFontPlugin {
 pub struct PixelFontSet;
 
 /// An image font as well as the mapping of characters to regions inside it.
-#[derive(TypeUuid, Debug, Clone, Reflect, Default)]
+#[derive(TypeUuid, Debug, Clone, Reflect, Default, Asset)]
 #[uuid = "5f2e937e-cb24-4642-a26d-512c77bf4459"]
 pub struct PixelFont {
     pub atlas: Handle<TextureAtlas>,
@@ -109,7 +109,8 @@ pub struct PixelFontBundle {
     pub transform: Transform,
     pub global_transform: GlobalTransform,
     pub visibility: Visibility,
-    pub computed_visibility: ComputedVisibility,
+    pub inherited_visibility: InheritedVisibility,
+    pub view_visibility: ViewVisibility,
     /// Where the transform point is located relative to the entire string; does
     /// not affect the position of individual letters within the string.
     pub anchor: Anchor,
@@ -126,8 +127,12 @@ pub fn update_pixel_font_layout(
     mut text_query: Query<(&PixelFontText, &mut TextLayout), Changed<PixelFontText>>,
 ) {
     for (text, mut layout) in &mut text_query {
-        let Some(font) = fonts.get(&text.font) else { continue; };
-        let Some(atlas) = atlases.get(&font.atlas) else { continue; };
+        let Some(font) = fonts.get(&text.font) else {
+            continue;
+        };
+        let Some(atlas) = atlases.get(&font.atlas) else {
+            continue;
+        };
 
         let mut size = Vec2::ZERO;
         let mut position = Vec2::ZERO;
@@ -159,13 +164,14 @@ pub fn update_pixel_font_layout(
 
 #[allow(clippy::type_complexity)]
 pub fn extract_text_sprite(
+    mut commands: Commands,
     mut extracted_sprites: ResMut<ExtractedSprites>,
     fonts: Extract<Res<Assets<PixelFont>>>,
     texture_atlases: Extract<Res<Assets<TextureAtlas>>>,
     text_query: Extract<
         Query<(
             Entity,
-            &ComputedVisibility,
+            &ViewVisibility,
             &GlobalTransform,
             &PixelFontText,
             &TextLayout,
@@ -173,12 +179,16 @@ pub fn extract_text_sprite(
         )>,
     >,
 ) {
-    for (entity, visibility, text_transform, text, text_layout, anchor) in &text_query {
-        if !visibility.is_visible() {
+    for (original_entity, visibility, text_transform, text, text_layout, anchor) in &text_query {
+        if !visibility.get() {
             continue;
         }
-        let Some(font) = fonts.get(&text.font) else { continue; };
-        let Some(atlas) = texture_atlases.get(&font.atlas) else { continue; };
+        let Some(font) = fonts.get(&text.font) else {
+            continue;
+        };
+        let Some(atlas) = texture_atlases.get(&font.atlas) else {
+            continue;
+        };
         let image_handle_id = atlas.texture.clone_weak().id();
         let alignment_translation = text_layout.size * (-anchor.as_vec() - 0.5);
         for glyph in &text_layout.glyphs {
@@ -186,17 +196,21 @@ pub fn extract_text_sprite(
                 * Transform::from_translation(alignment_translation.extend(0.))
                 * Transform::from_translation(glyph.position.extend(0.));
             let rect = atlas.textures[glyph.atlas_index];
-            extracted_sprites.sprites.push(ExtractedSprite {
+            let entity = commands.spawn_empty().id();
+            extracted_sprites.sprites.insert(
                 entity,
-                transform,
-                color: Color::default(),
-                rect: Some(rect),
-                custom_size: Some(glyph.size),
-                image_handle_id,
-                flip_x: false,
-                flip_y: false,
-                anchor: Anchor::Center.as_vec(),
-            });
+                ExtractedSprite {
+                    original_entity: Some(original_entity),
+                    transform,
+                    color: Color::default(),
+                    rect: Some(rect),
+                    custom_size: Some(glyph.size),
+                    image_handle_id,
+                    flip_x: false,
+                    flip_y: false,
+                    anchor: Anchor::Center.as_vec(),
+                },
+            );
         }
     }
 }
