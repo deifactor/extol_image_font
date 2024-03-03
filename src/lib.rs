@@ -2,7 +2,6 @@ use std::collections::HashMap;
 
 use bevy::{
     prelude::*,
-    reflect::TypeUuid,
     render::{Extract, RenderApp},
     sprite::{
         extract_sprites, queue_sprites, Anchor, ExtractedSprite, ExtractedSprites, SpriteSystem,
@@ -35,10 +34,10 @@ impl Plugin for PixelFontPlugin {
 pub struct PixelFontSet;
 
 /// An image font as well as the mapping of characters to regions inside it.
-#[derive(TypeUuid, Debug, Clone, Reflect, Default, Asset)]
-#[uuid = "5f2e937e-cb24-4642-a26d-512c77bf4459"]
+#[derive(Debug, Clone, Reflect, Default, Asset)]
 pub struct PixelFont {
-    pub atlas: Handle<TextureAtlas>,
+    layout: Handle<TextureAtlasLayout>,
+    texture: Handle<Image>,
     /// The glyph used to render `c` is contained in the part of the image
     /// pointed to by `atlas.textures[index_map[c]]`.
     index_map: HashMap<char, usize>,
@@ -56,14 +55,15 @@ impl PixelFont {
     /// STUVWXYZ0123456789
     /// "#;
     /// let font = extol_pixel_font::PixelFont::new(atlas, chars);
-    pub fn new(atlas: Handle<TextureAtlas>, string: &str) -> Self {
+    pub fn new(layout: Handle<TextureAtlasLayout>, texture: Handle<Image>, string: &str) -> Self {
         let chars = string
             .chars()
             .filter(|c| *c != '\n')
             .enumerate()
             .map(|(i, c)| (c, i));
         Self {
-            atlas,
+            layout,
+            texture,
             index_map: chars.collect(),
         }
     }
@@ -123,14 +123,14 @@ pub struct PixelFontBundle {
 #[allow(clippy::type_complexity)]
 pub fn update_pixel_font_layout(
     fonts: Res<Assets<PixelFont>>,
-    atlases: Res<Assets<TextureAtlas>>,
+    atlases: Res<Assets<TextureAtlasLayout>>,
     mut text_query: Query<(&PixelFontText, &mut TextLayout), Changed<PixelFontText>>,
 ) {
     for (text, mut layout) in &mut text_query {
         let Some(font) = fonts.get(&text.font) else {
             continue;
         };
-        let Some(atlas) = atlases.get(&font.atlas) else {
+        let Some(atlas) = atlases.get(&font.layout) else {
             continue;
         };
 
@@ -167,7 +167,7 @@ pub fn extract_text_sprite(
     mut commands: Commands,
     mut extracted_sprites: ResMut<ExtractedSprites>,
     fonts: Extract<Res<Assets<PixelFont>>>,
-    texture_atlases: Extract<Res<Assets<TextureAtlas>>>,
+    texture_atlases: Extract<Res<Assets<TextureAtlasLayout>>>,
     text_query: Extract<
         Query<(
             Entity,
@@ -186,10 +186,10 @@ pub fn extract_text_sprite(
         let Some(font) = fonts.get(&text.font) else {
             continue;
         };
-        let Some(atlas) = texture_atlases.get(&font.atlas) else {
+        let Some(atlas) = texture_atlases.get(&font.layout) else {
             continue;
         };
-        let image_handle_id = atlas.texture.clone_weak().id();
+        let image_handle_id = font.texture.clone_weak().id();
         let alignment_translation = text_layout.size * (-anchor.as_vec() - 0.5);
         for glyph in &text_layout.glyphs {
             let transform = *text_transform

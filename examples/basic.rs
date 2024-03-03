@@ -21,8 +21,9 @@ fn main() {
 #[derive(AssetCollection, Resource)]
 struct DemoAssets {
     #[asset(texture_atlas(tile_size_x = 5., tile_size_y = 12., columns = 20, rows = 5))]
+    layout: Handle<TextureAtlasLayout>,
     #[asset(path = "example_font.png")]
-    sprite: Handle<TextureAtlas>,
+    sprite: Handle<Image>,
 }
 
 fn spawn_text(
@@ -37,7 +38,11 @@ HIJKLMNOPQRSTUVWXYZ[
 \]^_`abcdefghijklmno
 pqrstuvwxyz{|}~
 "##;
-    let pixel_font = pixel_fonts.add(PixelFont::new(assets.sprite.clone(), s));
+    let pixel_font = pixel_fonts.add(PixelFont::new(
+        assets.layout.clone(),
+        assets.sprite.clone(),
+        s,
+    ));
     commands.spawn(Camera2dBundle::default());
 
     // XXX: shouldn't be exactly on integer coordinates. not sure why.

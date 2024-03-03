@@ -1,6 +1,6 @@
 [package]
 name = "extol_pixel_font"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 authors = ["Ash <ext0l@catgirl.ai>"]
 categories = [ "game-development" ]
@@ -9,10 +9,10 @@ keywords = [ "gamedev", "bevy" ]
 license = "MIT OR Apache-2.0"
 
 [dependencies]
-bevy = { version = "0.12", default-features = false, features = ["bevy_asset", "bevy_render", "bevy_sprite"] }
+bevy = { version = "0.13", default-features = false, features = ["bevy_asset", "bevy_render", "bevy_sprite"] }
 
 [dev-dependencies]
-bevy = { version = "0.12", default-features = false, features = [
+bevy = { version = "0.13", default-features = false, features = [
   "bevy_asset",
   "bevy_render",
   "bevy_sprite",
@@ -22,4 +22,4 @@ bevy = { version = "0.12", default-features = false, features = [
   "x11",
   "wayland"
 ] }
-bevy_asset_loader = { version = "0.19.1", features = ["2d"] }
+bevy_asset_loader = { version = "0.20.0", features = ["2d"] }
