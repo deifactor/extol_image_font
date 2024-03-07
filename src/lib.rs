@@ -1,3 +1,5 @@
+/// A Bevy plugin for rendering fonts stored as a single image (typically PNG),
+/// which is a common distribution format for bitmap fonts.
 use std::collections::HashMap;
 
 use bevy::{
@@ -15,7 +17,9 @@ pub struct PixelFontPlugin;
 impl Plugin for PixelFontPlugin {
     fn build(&self, app: &mut App) {
         app.init_asset::<PixelFont>()
-            .add_systems(Update, update_pixel_font_layout);
+            .add_systems(Update, update_pixel_font_layout.in_set(PixelFontSet))
+            // without this, you get weird artifacts
+            .insert_resource(Msaa::Off);
         let render_app = app.sub_app_mut(RenderApp);
         render_app.add_systems(
             ExtractSchedule,
@@ -28,19 +32,19 @@ impl Plugin for PixelFontPlugin {
     }
 }
 
-/// Set for all systems related to [`SpriteLayerPlugin`]. This is run in the
-/// render app's [`ExtractSchedule`], *not* the main app.
+/// Set for all systems related to [`SpriteLayerPlugin`]. This gets used both in
+/// the render app and in the main app.
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, SystemSet)]
 pub struct PixelFontSet;
 
 /// An image font as well as the mapping of characters to regions inside it.
 #[derive(Debug, Clone, Reflect, Default, Asset)]
 pub struct PixelFont {
-    layout: Handle<TextureAtlasLayout>,
-    texture: Handle<Image>,
+    pub layout: Handle<TextureAtlasLayout>,
+    pub texture: Handle<Image>,
     /// The glyph used to render `c` is contained in the part of the image
     /// pointed to by `atlas.textures[index_map[c]]`.
-    index_map: HashMap<char, usize>,
+    pub index_map: HashMap<char, usize>,
 }
 
 impl PixelFont {
@@ -75,12 +79,12 @@ pub struct PixelFontText {
     pub text: String,
     pub font: Handle<PixelFont>,
     /// If set, overrides the height the font is rendered at. This should be an
-    /// integer multiple of the 'native' height, but we allow float values for
-    /// things like animations.
+    /// integer multiple of the 'native' height if you want pixel accuracy,
+    /// but we allow float values for things like animations.
     pub font_height: Option<f32>,
 }
 
-/// Layout information about an [`PixelFontText`]. This is computed whenever the
+/// Layout information about a [`PixelFontText`]. This is computed whenever the
 /// [`PixelFontText`] is updated or created, so you don't need to manually
 /// manage this.
 #[derive(Debug, Clone, Reflect, Default, Component)]
@@ -103,6 +107,9 @@ struct Glyph {
 
 /// All the components you need to actually render some text using
 /// `extol_pixel_font`.
+///
+/// NOTE: using exact integer coordinates for the transform can sometimes cause
+/// slight rendering issues. I'm not sure why.
 #[derive(Bundle, Default)]
 pub struct PixelFontBundle {
     pub text: PixelFontText,
@@ -162,6 +169,8 @@ pub fn update_pixel_font_layout(
     }
 }
 
+/// Runs in the render world, generating an [`ExtractedSprite`] entity for each
+/// letter in pixel font text.
 #[allow(clippy::type_complexity)]
 pub fn extract_text_sprite(
     mut commands: Commands,

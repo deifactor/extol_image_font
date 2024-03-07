@@ -1,6 +1,5 @@
-//! An example that demonstrates the effect of y-sorting. The two sets of
-//! squares have the same coordinates, but the one on the right uses sprite
-//! layers and so is y-sorted. Tap space to toggle y-sorting.
+/// Demonstrates rendering pixel font text at both its 'native' height and a
+/// scaled-up ehight.
 use bevy::{prelude::*, sprite::Anchor};
 use bevy_asset_loader::prelude::{AssetCollection, AssetCollectionApp};
 use extol_pixel_font::{PixelFont, PixelFontBundle, PixelFontPlugin, PixelFontText};
