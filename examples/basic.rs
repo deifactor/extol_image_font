@@ -30,6 +30,8 @@ fn spawn_text(
     assets: Res<DemoAssets>,
     mut pixel_fonts: ResMut<Assets<PixelFont>>,
 ) {
+    // note that the newlines here are stripped; we use the `TextureAtlasLayout`'s
+    // size information.
     let s = r##"
  !"#$%&'()*+,-./0123
 456789:;<=>?@ABCDEFG

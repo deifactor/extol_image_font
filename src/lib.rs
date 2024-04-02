@@ -1,41 +1,48 @@
-/// A Bevy plugin for rendering fonts stored as a single image (typically PNG),
-/// which is a common distribution format for bitmap fonts.
+#![doc = include_str!("../README.md")]
 use std::collections::HashMap;
 
 use bevy::{
     prelude::*,
     render::{Extract, RenderApp},
-    sprite::{
-        extract_sprites, queue_sprites, Anchor, ExtractedSprite, ExtractedSprites, SpriteSystem,
-    },
+    sprite::{extract_sprites, queue_sprites, Anchor, ExtractedSprite, ExtractedSprites},
 };
 
-/// Plugin that enables rendering fonts.
 #[derive(Default)]
 pub struct PixelFontPlugin;
 
 impl Plugin for PixelFontPlugin {
     fn build(&self, app: &mut App) {
         app.init_asset::<PixelFont>()
-            .add_systems(Update, update_pixel_font_layout.in_set(PixelFontSet))
+            .add_systems(
+                Update,
+                update_pixel_font_layout.in_set(PixelFontSet::UpdateLayout),
+            )
             // without this, you get weird artifacts
-            .insert_resource(Msaa::Off);
+            .insert_resource(Msaa::Off)
+            .register_type::<PixelFont>()
+            .register_type::<PixelFontText>()
+            .register_type::<TextLayout>();
         let render_app = app.sub_app_mut(RenderApp);
         render_app.add_systems(
             ExtractSchedule,
             extract_text_sprite
-                .in_set(SpriteSystem::ExtractSprites)
-                .in_set(PixelFontSet)
+                .in_set(PixelFontSet::Extract)
+                // extract_sprites clears the extracted sprite list
                 .after(extract_sprites)
                 .before(queue_sprites),
         );
     }
 }
 
-/// Set for all systems related to [`SpriteLayerPlugin`]. This gets used both in
-/// the render app and in the main app.
+/// System sets for systems related to [`PixelFontPlugin`].
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, SystemSet)]
-pub struct PixelFontSet;
+pub enum PixelFontSet {
+    /// Recomputes the text layout of each [`PixelFont`] component.
+    UpdateLayout,
+    /// Extracts individual sprites from [`PixelFont`]s. Runs in the render
+    /// world.
+    Extract,
+}
 
 /// An image font as well as the mapping of characters to regions inside it.
 #[derive(Debug, Clone, Reflect, Default, Asset)]
@@ -53,12 +60,13 @@ impl PixelFont {
     ///
     /// ```rust
     /// # use bevy::prelude::*;
-    /// # let atlas = Handle::default();
+    /// # let layout = Handle::default();
+    /// # let texture = Handle::default();
     /// let chars = r#"
     /// ABCDEFGHIJKLMNOPQR
     /// STUVWXYZ0123456789
     /// "#;
-    /// let font = extol_pixel_font::PixelFont::new(atlas, chars);
+    /// let font = extol_pixel_font::PixelFont::new(layout, texture, chars);
     pub fn new(layout: Handle<TextureAtlasLayout>, texture: Handle<Image>, string: &str) -> Self {
         let chars = string
             .chars()
@@ -73,7 +81,7 @@ impl PixelFont {
     }
 }
 
-/// Text rendered using an [`PixelFont`].
+/// Text rendered using a [`PixelFont`].
 #[derive(Debug, Clone, Reflect, Default, Component)]
 pub struct PixelFontText {
     pub text: String,
@@ -95,7 +103,7 @@ pub struct TextLayout {
 
 /// A single symbol inside a piece of rendered text.
 #[derive(Debug, Clone, Reflect, Default)]
-struct Glyph {
+pub struct Glyph {
     /// Position relative to the entire text string (i.e., not the position
     /// inside the atlas).
     position: Vec2,
@@ -141,7 +149,9 @@ pub fn update_pixel_font_layout(
             continue;
         };
 
+        // size of the entire laid-out text
         let mut size = Vec2::ZERO;
+        // position of the *current* glyph
         let mut position = Vec2::ZERO;
         let glyphs: Vec<Glyph> = text
             .text
@@ -160,6 +170,7 @@ pub fn update_pixel_font_layout(
                     size: rect.size() * scale,
                     atlas_index,
                 };
+                // move the position to the right accordingly
                 position += Vec2::X * rect.width() * scale;
                 size = rect.size() * scale + position;
                 Some(glyph)
