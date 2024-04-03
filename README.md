@@ -8,3 +8,7 @@ See [the bevy_ui example] for sample usage using the `bevy_asset_loader` crate t
 
 [the basic example]: https://github.com/deifactor/extol_pixel_font/blob/main/examples/basic.rs
 [the bevy_ui example]: https://github.com/deifactor/extol_pixel_font/blob/main/examples/bevy_ui.rs
+
+## Credits
+
+The sample font is by [gnsh](https://opengameart.org/content/bitmap-font-0).
