@@ -13,7 +13,7 @@ fn main() {
         .insert_resource(Msaa::Off)
         .init_collection::<DemoAssets>()
         .add_systems(Startup, spawn_text)
-        .insert_resource(ClearColor(Color::BLACK))
+        .insert_resource(ClearColor(Color::rgb(0.2, 0.2, 0.2)))
         .run();
 }
 
