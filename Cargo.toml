@@ -9,8 +9,15 @@ keywords = [ "gamedev", "bevy" ]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/deifactor/extol_pixel_font"
 
+[features]
+default = ["ui"]
+# Enables support for rendering to UiImage bundles
+ui = ["bevy/bevy_ui"]
+
 [dependencies]
 bevy = { version = "0.13", default-features = false, features = ["bevy_asset", "bevy_render", "bevy_sprite"] }
+image = { version = "0.24.9", default-features = false, features = ["png"] }
+thiserror = "1.0.58"
 
 [dev-dependencies]
 bevy = { version = "0.13", default-features = false, features = [

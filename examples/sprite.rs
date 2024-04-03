@@ -1,6 +1,6 @@
 /// Demonstrates rendering pixel font text at both its 'native' height and a
-/// scaled-up ehight.
-use bevy::{prelude::*, sprite::Anchor};
+/// scaled-up height.
+use bevy::prelude::*;
 use bevy_asset_loader::prelude::{AssetCollection, AssetCollectionApp};
 use extol_pixel_font::{PixelFont, PixelFontBundle, PixelFontPlugin, PixelFontText};
 
@@ -54,7 +54,6 @@ pqrstuvwxyz{|}~
             font_height: Some(36.0),
         },
         transform: Transform::from_translation(Vec3::new(0.2, 0.2, 0.2)),
-        anchor: Anchor::Center,
         ..default()
     });
     commands.spawn(PixelFontBundle {
@@ -64,7 +63,6 @@ pqrstuvwxyz{|}~
             font_height: None,
         },
         transform: Transform::from_translation(Vec3::new(0.2, 40.2, 0.2)),
-        anchor: Anchor::Center,
         ..default()
     });
 }

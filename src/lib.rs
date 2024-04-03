@@ -1,11 +1,21 @@
 #![doc = include_str!("../README.md")]
 use std::collections::HashMap;
 
+#[cfg(feature = "ui")]
+use bevy::ui::widget::update_image_content_size_system;
 use bevy::{
     prelude::*,
-    render::{Extract, RenderApp},
-    sprite::{extract_sprites, queue_sprites, Anchor, ExtractedSprite, ExtractedSprites},
+    render::{
+        render_asset::RenderAssetUsages,
+        render_resource::{Extent3d, TextureDimension, TextureFormat},
+        texture::ImageSampler,
+    },
 };
+use image::{
+    imageops::{self, FilterType},
+    GenericImage, GenericImageView, ImageBuffer, ImageError, Rgba,
+};
+use thiserror::Error;
 
 #[derive(Default)]
 pub struct PixelFontPlugin;
@@ -13,36 +23,22 @@ pub struct PixelFontPlugin;
 impl Plugin for PixelFontPlugin {
     fn build(&self, app: &mut App) {
         app.init_asset::<PixelFont>()
-            .add_systems(
-                Update,
-                update_pixel_font_layout.in_set(PixelFontSet::UpdateLayout),
-            )
-            // without this, you get weird artifacts
-            .insert_resource(Msaa::Off)
+            .add_systems(PostUpdate, render_sprites.in_set(PixelFontSet))
             .register_type::<PixelFont>()
-            .register_type::<PixelFontText>()
-            .register_type::<TextLayout>();
-        let render_app = app.sub_app_mut(RenderApp);
-        render_app.add_systems(
-            ExtractSchedule,
-            extract_text_sprite
-                .in_set(PixelFontSet::Extract)
-                // extract_sprites clears the extracted sprite list
-                .after(extract_sprites)
-                .before(queue_sprites),
+            .register_type::<PixelFontText>();
+        #[cfg(feature = "ui")]
+        app.add_systems(
+            PostUpdate,
+            render_ui_images
+                .in_set(PixelFontSet)
+                .before(update_image_content_size_system),
         );
     }
 }
 
-/// System sets for systems related to [`PixelFontPlugin`].
+/// System set for systems related to [`PixelFontPlugin`].
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, SystemSet)]
-pub enum PixelFontSet {
-    /// Recomputes the text layout of each [`PixelFont`] component.
-    UpdateLayout,
-    /// Extracts individual sprites from [`PixelFont`]s. Runs in the render
-    /// world.
-    Extract,
-}
+pub struct PixelFontSet;
 
 /// An image font as well as the mapping of characters to regions inside it.
 #[derive(Debug, Clone, Reflect, Default, Asset)]
@@ -92,27 +88,6 @@ pub struct PixelFontText {
     pub font_height: Option<f32>,
 }
 
-/// Layout information about a [`PixelFontText`]. This is computed whenever the
-/// [`PixelFontText`] is updated or created, so you don't need to manually
-/// manage this.
-#[derive(Debug, Clone, Reflect, Default, Component)]
-pub struct TextLayout {
-    size: Vec2,
-    glyphs: Vec<Glyph>,
-}
-
-/// A single symbol inside a piece of rendered text.
-#[derive(Debug, Clone, Reflect, Default)]
-pub struct Glyph {
-    /// Position relative to the entire text string (i.e., not the position
-    /// inside the atlas).
-    position: Vec2,
-    /// Size of this individual glyph. Might differ from the usual if the font
-    /// is scaled.
-    size: Vec2,
-    atlas_index: usize,
-}
-
 /// All the components you need to actually render some text using
 /// `extol_pixel_font`.
 ///
@@ -121,116 +96,189 @@ pub struct Glyph {
 #[derive(Bundle, Default)]
 pub struct PixelFontBundle {
     pub text: PixelFontText,
+    /// Can be used to set the anchor, flip_x, flip_y, etc. Note that the
+    /// custom_size property will be recalculated based on
+    /// `PixelFontText::font_height`.
+    pub sprite: Sprite,
     pub transform: Transform,
     pub global_transform: GlobalTransform,
     pub visibility: Visibility,
     pub inherited_visibility: InheritedVisibility,
     pub view_visibility: ViewVisibility,
-    /// Where the transform point is located relative to the entire string; does
-    /// not affect the position of individual letters within the string.
-    pub anchor: Anchor,
-    /// Automatically computed; you can leave this default-initialized.
-    pub layout: TextLayout,
+    /// The text will be rendered to this, so you don't need to initialize it.
+    pub texture: Handle<Image>,
 }
 
-/// Update all [`TextLayout`]s whose [`PixelFontText`] has changed since this
-/// system last ran.
-#[allow(clippy::type_complexity)]
-pub fn update_pixel_font_layout(
-    fonts: Res<Assets<PixelFont>>,
-    atlases: Res<Assets<TextureAtlasLayout>>,
-    mut text_query: Query<(&PixelFontText, &mut TextLayout), Changed<PixelFontText>>,
+/// System that renders each [`PixelFontText`] into the corresponding
+/// `Handle<Image>`. This is mainly for use with sprites.
+pub fn render_sprites(
+    mut query: Query<(&PixelFontText, &mut Handle<Image>), Changed<PixelFontText>>,
+    pixel_fonts: Res<Assets<PixelFont>>,
+    mut images: ResMut<Assets<Image>>,
+    layouts: Res<Assets<TextureAtlasLayout>>,
 ) {
-    for (text, mut layout) in &mut text_query {
-        let Some(font) = fonts.get(&text.font) else {
-            continue;
-        };
-        let Some(atlas) = atlases.get(&font.layout) else {
-            continue;
-        };
-
-        // size of the entire laid-out text
-        let mut size = Vec2::ZERO;
-        // position of the *current* glyph
-        let mut position = Vec2::ZERO;
-        let glyphs: Vec<Glyph> = text
-            .text
-            .chars()
-            .filter_map(|c| {
-                let atlas_index = *font.index_map.get(&c)?;
-                assert!(c != '\n', "newlines are not yet supported");
-
-                let rect = atlas.textures[atlas_index];
-                let scale = text
-                    .font_height
-                    .map_or(1.0, |height| height / rect.height());
-
-                let glyph = Glyph {
-                    position,
-                    size: rect.size() * scale,
-                    atlas_index,
-                };
-                // move the position to the right accordingly
-                position += Vec2::X * rect.width() * scale;
-                size = rect.size() * scale + position;
-                Some(glyph)
-            })
-            .collect();
-        *layout = TextLayout { size, glyphs };
+    for (pixel_font_text, mut image_handle) in &mut query {
+        debug!("Rendering [{}]", pixel_font_text.text);
+        // don't need to clear the old image since it'll be no longer live
+        match render_text(
+            &pixel_font_text,
+            pixel_fonts.as_ref(),
+            images.as_ref(),
+            layouts.as_ref(),
+        ) {
+            Ok(image) => {
+                *image_handle = images.add(image);
+            }
+            Err(e) => {
+                error!(
+                    "Error when rendering pixel font text {:?}: {}",
+                    pixel_font_text, e
+                );
+            }
+        }
     }
 }
 
-/// Runs in the render world, generating an [`ExtractedSprite`] entity for each
-/// letter in pixel font text.
-#[allow(clippy::type_complexity)]
-pub fn extract_text_sprite(
-    mut commands: Commands,
-    mut extracted_sprites: ResMut<ExtractedSprites>,
-    fonts: Extract<Res<Assets<PixelFont>>>,
-    texture_atlases: Extract<Res<Assets<TextureAtlasLayout>>>,
-    text_query: Extract<
-        Query<(
-            Entity,
-            &ViewVisibility,
-            &GlobalTransform,
-            &PixelFontText,
-            &TextLayout,
-            &Anchor,
-        )>,
-    >,
+#[cfg(feature = "ui")]
+/// System that renders each [`PixelFontText`] into the corresponding
+/// [`UiImage`].
+pub fn render_ui_images(
+    mut query: Query<(&PixelFontText, &mut UiImage), Changed<PixelFontText>>,
+    pixel_fonts: Res<Assets<PixelFont>>,
+    mut images: ResMut<Assets<Image>>,
+    layouts: Res<Assets<TextureAtlasLayout>>,
 ) {
-    for (original_entity, visibility, text_transform, text, text_layout, anchor) in &text_query {
-        if !visibility.get() {
-            continue;
-        }
-        let Some(font) = fonts.get(&text.font) else {
-            continue;
-        };
-        let Some(atlas) = texture_atlases.get(&font.layout) else {
-            continue;
-        };
-        let image_handle_id = font.texture.clone_weak().id();
-        let alignment_translation = text_layout.size * (-anchor.as_vec() - 0.5);
-        for glyph in &text_layout.glyphs {
-            let transform = *text_transform
-                * Transform::from_translation(alignment_translation.extend(0.))
-                * Transform::from_translation(glyph.position.extend(0.));
-            let rect = atlas.textures[glyph.atlas_index];
-            let entity = commands.spawn_empty().id();
-            extracted_sprites.sprites.insert(
-                entity,
-                ExtractedSprite {
-                    original_entity: Some(original_entity),
-                    transform,
-                    color: Color::default(),
-                    rect: Some(rect),
-                    custom_size: Some(glyph.size),
-                    image_handle_id,
-                    flip_x: false,
-                    flip_y: false,
-                    anchor: Anchor::Center.as_vec(),
-                },
-            );
+    for (pixel_font_text, mut ui_image) in &mut query {
+        debug!("Rendering [{}]", pixel_font_text.text);
+        // don't need to clear the old image since it'll be no longer live
+        match render_text(
+            &pixel_font_text,
+            pixel_fonts.as_ref(),
+            images.as_ref(),
+            layouts.as_ref(),
+        ) {
+            Ok(image) => {
+                ui_image.texture = images.add(image);
+            }
+            Err(e) => {
+                error!(
+                    "Error when rendering pixel font text {:?}: {}",
+                    pixel_font_text, e
+                );
+            }
         }
     }
+}
+
+/// Errors that can show up during rendering.
+#[derive(Debug, Error)]
+pub enum PixelFontPluginError {
+    #[error("failed to convert image to DynamicImage: {0}")]
+    ImageConversion(String),
+    #[error("PixelFont asset not loaded")]
+    MissingPixelFontAsset,
+    #[error("Font texture asset not loaded")]
+    MissingTextureAsset,
+    #[error("atlas layout asset not loaded")]
+    MissingTextureAtlasLayout,
+    #[error("internal error")]
+    UnknownError,
+    #[error("failed to copy from atlas")]
+    CopyFailure(#[from] ImageError),
+}
+
+/// Renders the text inside the [`PixelFontText`] to a single output image. You
+/// don't need to use this if you're using the built-in functionality, but if
+/// you want to use this for some other custom plugin/system, you can call this.
+pub fn render_text(
+    pixel_font_text: &PixelFontText,
+    pixel_fonts: &Assets<PixelFont>,
+    images: &Assets<Image>,
+    layouts: &Assets<TextureAtlasLayout>,
+) -> Result<Image, PixelFontPluginError> {
+    let pixel_font = pixel_fonts
+        .get(&pixel_font_text.font)
+        .ok_or(PixelFontPluginError::MissingPixelFontAsset)?;
+    let font_texture = images
+        .get(&pixel_font.texture)
+        .ok_or(PixelFontPluginError::MissingTextureAsset)?;
+    let layout = layouts
+        .get(&pixel_font.layout)
+        .ok_or(PixelFontPluginError::MissingTextureAtlasLayout)?;
+
+    let text = &pixel_font_text.text;
+
+    if text.is_empty() {
+        return Ok(Image::new(
+            Extent3d {
+                width: 0,
+                height: 0,
+                depth_or_array_layers: 1,
+            },
+            TextureDimension::D2,
+            vec![],
+            TextureFormat::Rgba8UnormSrgb,
+            RenderAssetUsages::RENDER_WORLD,
+        ));
+    }
+
+    // as wide as the sum of all characters, as tall as the tallest one
+    let height = text
+        .chars()
+        .map(|c| layout.textures[pixel_font.index_map[&c]].height())
+        .reduce(f32::max)
+        .unwrap()
+        .ceil() as u32;
+    let width = text
+        .chars()
+        .map(|c| layout.textures[pixel_font.index_map[&c]].width())
+        .reduce(|a, b| a + b)
+        .unwrap()
+        .ceil() as u32;
+
+    let mut output_image = image::RgbaImage::new(width, height);
+    let font_texture: ImageBuffer<Rgba<u8>, _> = ImageBuffer::from_raw(
+        font_texture.width(),
+        font_texture.height(),
+        font_texture.data.as_slice(),
+    )
+    .ok_or(PixelFontPluginError::UnknownError)?;
+
+    let mut x = 0;
+    for c in text.chars() {
+        let rect = layout.textures[pixel_font.index_map[&c]];
+        let width = rect.width().ceil() as u32;
+        let height = rect.height().ceil() as u32;
+        output_image.copy_from(
+            &*font_texture.view(rect.min.x as u32, rect.min.y as u32, width, height),
+            x,
+            0,
+        )?;
+        x += width;
+    }
+
+    if let Some(font_height) = pixel_font_text.font_height {
+        let width = output_image.width() as f32 * font_height / output_image.height() as f32;
+        output_image = imageops::resize(
+            &output_image,
+            width as u32,
+            font_height as u32,
+            FilterType::Nearest,
+        );
+    }
+
+    let mut bevy_image = Image::new(
+        Extent3d {
+            // these might have changed because of the resize
+            width: output_image.width(),
+            height: output_image.height(),
+            depth_or_array_layers: 1,
+        },
+        TextureDimension::D2,
+        output_image.into_vec(),
+        TextureFormat::Rgba8UnormSrgb,
+        RenderAssetUsages::RENDER_WORLD,
+    );
+    bevy_image.sampler = ImageSampler::nearest();
+    Ok(bevy_image)
 }
