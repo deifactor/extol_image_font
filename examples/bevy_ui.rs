@@ -8,11 +8,7 @@ struct VowsJudged(u32);
 
 fn main() {
     App::new()
-        .add_plugins((
-            DefaultPlugins.build().set(ImagePlugin::default_nearest()),
-            PixelFontPlugin,
-        ))
-        .insert_resource(Msaa::Off)
+        .add_plugins((DefaultPlugins, PixelFontPlugin))
         .init_collection::<DemoAssets>()
         .insert_resource(ClearColor(Color::rgb(0.2, 0.2, 0.2)))
         .init_resource::<VowsJudged>()
