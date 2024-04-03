@@ -166,6 +166,7 @@ pub fn render_ui_images(
 
 /// Errors that can show up during rendering.
 #[derive(Debug, Error)]
+#[non_exhaustive]
 pub enum PixelFontPluginError {
     #[error("failed to convert image to DynamicImage: {0}")]
     ImageConversion(String),
@@ -280,6 +281,8 @@ pub fn render_text(
     Ok(bevy_image)
 }
 
+/// Marks any text where the underlying [`PixelFont`] asset has changed as
+/// dirty, which will cause it to be rerendered.
 pub fn mark_changed_fonts_as_dirty(
     mut events: EventReader<AssetEvent<PixelFont>>,
     mut query: Query<&mut PixelFontText>,
@@ -307,7 +310,62 @@ pub enum PixelFontLayout {
     /// Interprets the string as a "grid" and slices up the input image
     /// accordingly. Leading and trailing newlines are stripped, but spaces
     /// are not (since your font might use them as padding).
+    ///
+    /// ```rust
+    /// # use extol_pixel_font::*;
+    /// # use bevy::prelude::*;
+    /// // note that we have a raw string *inside* a raw string here...
+    /// let s = r###"
+    ///
+    /// // this bit is the actual RON syntax
+    /// Automatic(r##"
+    ///  !"#$%&'()*+,-./0123
+    /// 456789:;<=>?@ABCDEFG
+    /// HIJKLMNOPQRSTUVWXYZ[
+    /// \]^_`abcdefghijklmno
+    /// pqrstuvwxyz{|}~
+    /// "##)
+    ///
+    /// "###;
+    /// let layout = ron::from_str::<PixelFontLayout>(s).unwrap();
+    /// ```
     Automatic(String),
+
+    /// Manually specifies the top-left position of each character, where each
+    /// character has the same size. When writing this in RON, the syntax
+    /// will look like
+    ///
+    /// ```rust
+    /// # use extol_pixel_font::*;
+    /// let s = r#"
+    /// ManualMonospace(
+    ///   size: (4, 8),
+    ///   coords: {
+    ///      'a': (0, 0),
+    ///      'b': (10, 0)
+    ///   }
+    /// )
+    /// "#;
+    /// ron::from_str::<PixelFontLayout>(s).unwrap();
+    /// ```
+    ManualMonospace {
+        size: UVec2,
+        coords: HashMap<char, UVec2>,
+    },
+
+    /// Fully specifies the bounds of each character. The most general case.
+    ///
+    /// ```rust
+    /// # use extol_pixel_font::*;
+    /// let s = r#"
+    /// Manual({
+    /// 'a': URect(min: (0, 0), max: (10, 20)),
+    /// 'b': URect(min: (20, 20), max: (25, 25))
+    /// })
+    /// "#;
+    /// ron::from_str::<PixelFontLayout>(s).unwrap();
+    /// ```
+    Manual(HashMap<char, URect>),
 }
 
 impl PixelFontLayout {
@@ -356,26 +414,44 @@ impl PixelFontLayout {
                 }
                 rect_map
             }
+            PixelFontLayout::ManualMonospace { size, coords } => coords
+                .into_iter()
+                .map(|(c, top_left)| {
+                    (
+                        c,
+                        Rect::from_corners(top_left.as_vec2(), (size + top_left).as_vec2()),
+                    )
+                })
+                .collect(),
+            PixelFontLayout::Manual(urect_map) => urect_map
+                .into_iter()
+                .map(|(k, v)| (k, v.as_rect()))
+                .collect(),
         }
     }
 }
 
 /// On-disk representation of a PixelFont, optimized to make it easy for humans
-/// to write these.
+/// to write these. See the docs for [`PixelFontLayout`]'s variants for
+/// information on how to write the syntax, or [the example font's RON asset].
+///
+/// [the example font's RON asset](https://github.com/deifactor/extol_pixel_font/blob/main/assets/example_font.pixel_font.ron)
 #[derive(Serialize, Deserialize)]
 pub struct PixelFontDiskFormat {
     pub image: PathBuf,
     pub layout: PixelFontLayout,
 }
 
+/// Loader for [`PixelFont`]s.
 #[derive(Debug, Default)]
 pub struct PixelFontLoader;
 
 impl AssetLoader for PixelFontLoader {
     type Asset = PixelFont;
 
-    // We could use PixelFontDiskFormat, but this type has to imnplement `Default`,
-    // and there's no sensible default value for that type.
+    // We could use PixelFontDiskFormat, but an AssetLoader's settings has to
+    // imnplement `Default`, and there's no sensible default value for that
+    // type.
     type Settings = ();
 
     type Error = PixelFontPluginError;
