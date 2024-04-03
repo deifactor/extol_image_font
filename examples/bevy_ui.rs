@@ -18,31 +18,11 @@ fn main() {
 
 #[derive(AssetCollection, Resource)]
 struct DemoAssets {
-    #[asset(texture_atlas(tile_size_x = 5., tile_size_y = 12., columns = 20, rows = 5))]
-    layout: Handle<TextureAtlasLayout>,
-    #[asset(path = "example_font.png")]
-    sprite: Handle<Image>,
+    #[asset(path = "example_font.pixel_font.ron")]
+    pixel_font: Handle<PixelFont>,
 }
 
-fn spawn_ui(
-    mut commands: Commands,
-    assets: Res<DemoAssets>,
-    mut pixel_fonts: ResMut<Assets<PixelFont>>,
-) {
-    // note that the newlines here are stripped; we use the `TextureAtlasLayout`'s
-    // size information.
-    let s = r##"
- !"#$%&'()*+,-./0123
-456789:;<=>?@ABCDEFG
-HIJKLMNOPQRSTUVWXYZ[
-\]^_`abcdefghijklmno
-pqrstuvwxyz{|}~
-"##;
-    let pixel_font = pixel_fonts.add(PixelFont::new(
-        assets.layout.clone(),
-        assets.sprite.clone(),
-        s,
-    ));
+fn spawn_ui(mut commands: Commands, assets: Res<DemoAssets>) {
     commands.spawn(Camera2dBundle::default());
 
     // root node
@@ -67,7 +47,7 @@ pqrstuvwxyz{|}~
                 },
                 PixelFontText {
                     text: "Points: 0".into(),
-                    font: pixel_font.clone(),
+                    font: assets.pixel_font.clone(),
                     font_height: None,
                 },
             ));

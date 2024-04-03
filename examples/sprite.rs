@@ -19,38 +19,18 @@ fn main() {
 
 #[derive(AssetCollection, Resource)]
 struct DemoAssets {
-    #[asset(texture_atlas(tile_size_x = 5., tile_size_y = 12., columns = 20, rows = 5))]
-    layout: Handle<TextureAtlasLayout>,
-    #[asset(path = "example_font.png")]
-    sprite: Handle<Image>,
+    #[asset(path = "example_font.pixel_font.ron")]
+    pixel_font: Handle<PixelFont>,
 }
 
-fn spawn_text(
-    mut commands: Commands,
-    assets: Res<DemoAssets>,
-    mut pixel_fonts: ResMut<Assets<PixelFont>>,
-) {
-    // note that the newlines here are stripped; we use the `TextureAtlasLayout`'s
-    // size information.
-    let s = r##"
- !"#$%&'()*+,-./0123
-456789:;<=>?@ABCDEFG
-HIJKLMNOPQRSTUVWXYZ[
-\]^_`abcdefghijklmno
-pqrstuvwxyz{|}~
-"##;
-    let pixel_font = pixel_fonts.add(PixelFont::new(
-        assets.layout.clone(),
-        assets.sprite.clone(),
-        s,
-    ));
+fn spawn_text(mut commands: Commands, assets: Res<DemoAssets>) {
     commands.spawn(Camera2dBundle::default());
 
     // XXX: shouldn't be exactly on integer coordinates. not sure why.
     commands.spawn(PixelFontBundle {
         text: PixelFontText {
             text: "Sphinx of black quartz, judge my vow!".into(),
-            font: pixel_font.clone(),
+            font: assets.pixel_font.clone(),
             font_height: Some(36.0),
         },
         transform: Transform::from_translation(Vec3::new(0.2, 0.2, 0.2)),
@@ -59,7 +39,7 @@ pqrstuvwxyz{|}~
     commands.spawn(PixelFontBundle {
         text: PixelFontText {
             text: "Sphinx of black quartz, judge my vow!".into(),
-            font: pixel_font,
+            font: assets.pixel_font.clone(),
             font_height: None,
         },
         transform: Transform::from_translation(Vec3::new(0.2, 40.2, 0.2)),
