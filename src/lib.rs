@@ -125,7 +125,7 @@ pub fn render_sprites(
     for (image_font_text, mut image_handle) in &mut query {
         debug!("Rendering [{}]", image_font_text.text);
         // don't need to clear the old image since it'll be no longer live
-        match render_text(&image_font_text, image_fonts.as_ref(), images.as_ref()) {
+        match render_text(image_font_text, image_fonts.as_ref(), images.as_ref()) {
             Ok(image) => {
                 *image_handle = images.add(image);
             }
@@ -150,7 +150,7 @@ pub fn render_ui_images(
     for (image_font_text, mut ui_image) in &mut query {
         debug!("Rendering [{}]", image_font_text.text);
         // don't need to clear the old image since it'll be no longer live
-        match render_text(&image_font_text, image_fonts.as_ref(), images.as_ref()) {
+        match render_text(image_font_text, image_fonts.as_ref(), images.as_ref()) {
             Ok(image) => {
                 ui_image.texture = images.add(image);
             }
@@ -191,6 +191,7 @@ pub enum ImageFontPluginError {
 /// Renders the text inside the [`ImageFontText`] to a single output image. You
 /// don't need to use this if you're using the built-in functionality, but if
 /// you want to use this for some other custom plugin/system, you can call this.
+#[allow(clippy::result_large_err)]
 pub fn render_text(
     image_font_text: &ImageFontText,
     image_fonts: &Assets<ImageFont>,
@@ -370,7 +371,7 @@ pub enum ImageFontLayout {
 
 impl ImageFontLayout {
     /// Given the image size, returns a map from each codepoint to its location.
-    fn to_char_map(self, size: UVec2) -> HashMap<char, Rect> {
+    fn into_char_map(self, size: UVec2) -> HashMap<char, Rect> {
         match self {
             ImageFontLayout::Automatic(str) => {
                 // trim() removes whitespace, which is not what we want!
@@ -477,7 +478,7 @@ impl AssetLoader for ImageFontLoader {
                 ))?;
 
             let size = image.size();
-            let char_map = disk_format.layout.to_char_map(size);
+            let char_map = disk_format.layout.into_char_map(size);
             let image_handle = load_context.add_labeled_asset("texture".into(), image);
 
             Ok(ImageFont::from_char_map(image_handle, size, &char_map))
