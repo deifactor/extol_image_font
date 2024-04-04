@@ -29,8 +29,10 @@ fn spawn_text(mut commands: Commands, assets: Res<DemoAssets>) {
             font: assets.image_font.clone(),
             font_height: Some(36.0),
         },
-        transform: Transform::from_translation(Vec3::new(0.2, 0.2, 0.2)),
-        ..default()
+        sprite: SpriteBundle {
+            transform: Transform::from_translation(Vec3::new(0.2, 0.2, 0.2)),
+            ..default()
+        },
     });
     commands.spawn(ImageFontBundle {
         text: ImageFontText {
@@ -38,7 +40,9 @@ fn spawn_text(mut commands: Commands, assets: Res<DemoAssets>) {
             font: assets.image_font.clone(),
             font_height: None,
         },
-        transform: Transform::from_translation(Vec3::new(0.2, 40.2, 0.2)),
-        ..default()
+        sprite: SpriteBundle {
+            transform: Transform::from_translation(Vec3::new(0.2, 40.2, 0.2)),
+            ..default()
+        },
     });
 }

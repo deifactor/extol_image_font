@@ -93,25 +93,20 @@ pub struct ImageFontText {
     pub font_height: Option<f32>,
 }
 
-/// All the components you need to actually render some text using
-/// `extol_image_font`.
-///
-/// NOTE: using exact integer coordinates for the transform can sometimes cause
-/// slight rendering issues. I'm not sure why.
+/// All the components you need to render image font text 'in the world'. If you
+/// want to use this with `bevy_ui`, use [`ImageFontUiBundle`] instead.
 #[derive(Bundle, Default)]
 pub struct ImageFontBundle {
     pub text: ImageFontText,
-    /// Can be used to set the anchor, flip_x, flip_y, etc. Note that the
-    /// custom_size property will be recalculated based on
-    /// `ImageFontText::font_height`.
-    pub sprite: Sprite,
-    pub transform: Transform,
-    pub global_transform: GlobalTransform,
-    pub visibility: Visibility,
-    pub inherited_visibility: InheritedVisibility,
-    pub view_visibility: ViewVisibility,
-    /// The text will be rendered to this, so you don't need to initialize it.
-    pub texture: Handle<Image>,
+    pub sprite: SpriteBundle,
+}
+
+/// All the components you need to render image font text in the UI. If you want
+/// to display text as an entity in the world, use [`ImageFontBundle`] instead.
+#[derive(Bundle, Default)]
+pub struct ImageFontUiBundle {
+    pub text: ImageFontText,
+    pub node: ImageBundle,
 }
 
 /// System that renders each [`ImageFontText`] into the corresponding
