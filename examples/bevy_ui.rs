@@ -57,11 +57,10 @@ fn spawn_ui(mut commands: Commands, assets: Res<DemoAssets>) {
                     },
                     ..default()
                 },
-                ImageFontText {
-                    text: "Press SPACE to judge!".into(),
-                    font: assets.image_font.clone(),
-                    font_height: Some(72.0),
-                },
+                ImageFontText::default()
+                    .text("Press SPACE to judge!")
+                    .font(assets.image_font.clone())
+                    .font_height(72.0),
             ));
         });
 
@@ -77,11 +76,9 @@ fn spawn_ui(mut commands: Commands, assets: Res<DemoAssets>) {
                 },
                 ..default()
             },
-            text: ImageFontText {
-                text: "vows".into(),
-                font: assets.image_font.clone(),
-                font_height: Some(72.0),
-            },
+            text: ImageFontText::default()
+                .font(assets.image_font.clone())
+                .font_height(72.0),
         },
     ));
 }

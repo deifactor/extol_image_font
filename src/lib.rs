@@ -13,6 +13,7 @@ use bevy::{
     },
     utils::{HashMap, HashSet},
 };
+use derive_setters::Setters;
 use image::{
     imageops::{self, FilterType},
     GenericImage, GenericImageView, ImageBuffer, ImageError, Rgba,
@@ -83,7 +84,8 @@ impl ImageFont {
 }
 
 /// Text rendered using an [`ImageFont`].
-#[derive(Debug, Clone, Reflect, Default, Component)]
+#[derive(Debug, Clone, Reflect, Default, Component, Setters)]
+#[setters(into)]
 pub struct ImageFontText {
     pub text: String,
     pub font: Handle<ImageFont>,

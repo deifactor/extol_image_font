@@ -24,22 +24,19 @@ fn spawn_text(mut commands: Commands, assets: Res<DemoAssets>) {
 
     // XXX: shouldn't be exactly on integer coordinates. not sure why.
     commands.spawn(ImageFontBundle {
-        text: ImageFontText {
-            text: "Sphinx of black quartz, judge my vow!".into(),
-            font: assets.image_font.clone(),
-            font_height: Some(36.0),
-        },
+        text: ImageFontText::default()
+            .text("Sphinx of black quartz, judge my vow!")
+            .font(assets.image_font.clone())
+            .font_height(36.0),
         sprite: SpriteBundle {
             transform: Transform::from_translation(Vec3::new(0.2, 0.2, 0.2)),
             ..default()
         },
     });
     commands.spawn(ImageFontBundle {
-        text: ImageFontText {
-            text: "Sphinx of black quartz, judge my vow!".into(),
-            font: assets.image_font.clone(),
-            font_height: None,
-        },
+        text: ImageFontText::default()
+            .text("Sphinx of black quartz, judge my vow!")
+            .font(assets.image_font.clone()),
         sprite: SpriteBundle {
             transform: Transform::from_translation(Vec3::new(0.2, 40.2, 0.2)),
             ..default()
