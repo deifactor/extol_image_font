@@ -143,7 +143,7 @@ impl ImageFontLayout {
 ///
 /// [the example font's RON asset](https://github.com/deifactor/extol_image_font/blob/main/assets/example_font.image_font.ron)
 #[derive(Serialize, Deserialize)]
-pub struct ImageFontDiskFormat {
+pub struct ImageFontSettings {
     pub image: PathBuf,
     pub layout: ImageFontLayout,
 }
@@ -169,7 +169,7 @@ pub enum ImageFontLoadError {
 impl AssetLoader for ImageFontLoader {
     type Asset = ImageFont;
 
-    // We could use ImageFontDiskFormat, but an AssetLoader's settings has to
+    // We could use ImageFontSettings, but an AssetLoader's settings has to
     // imnplement `Default`, and there's no sensible default value for that
     // type.
     type Settings = ();
@@ -185,7 +185,7 @@ impl AssetLoader for ImageFontLoader {
         Box::pin(async move {
             let mut str = String::new();
             reader.read_to_string(&mut str).await?;
-            let disk_format: ImageFontDiskFormat = ron::from_str(&str)?;
+            let disk_format: ImageFontSettings = ron::from_str(&str)?;
 
             // need the image loaded immediately because we need its size
             let image = load_context
