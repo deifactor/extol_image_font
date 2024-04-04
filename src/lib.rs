@@ -21,38 +21,38 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 #[derive(Default)]
-pub struct PixelFontPlugin;
+pub struct ImageFontPlugin;
 
-impl Plugin for PixelFontPlugin {
+impl Plugin for ImageFontPlugin {
     fn build(&self, app: &mut App) {
-        app.init_asset::<PixelFont>()
+        app.init_asset::<ImageFont>()
             .add_systems(
                 PostUpdate,
                 (mark_changed_fonts_as_dirty, render_sprites)
                     .chain()
-                    .in_set(PixelFontSet),
+                    .in_set(ImageFontSet),
             )
-            .init_asset_loader::<PixelFontLoader>()
-            .register_type::<PixelFont>()
-            .register_type::<PixelFontText>();
+            .init_asset_loader::<ImageFontLoader>()
+            .register_type::<ImageFont>()
+            .register_type::<ImageFontText>();
         #[cfg(feature = "ui")]
         app.add_systems(
             PostUpdate,
             render_ui_images
-                .in_set(PixelFontSet)
+                .in_set(ImageFontSet)
                 .before(update_image_content_size_system)
                 .after(mark_changed_fonts_as_dirty),
         );
     }
 }
 
-/// System set for systems related to [`PixelFontPlugin`].
+/// System set for systems related to [`ImageFontPlugin`].
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, SystemSet)]
-pub struct PixelFontSet;
+pub struct ImageFontSet;
 
 /// An image font as well as the mapping of characters to regions inside it.
 #[derive(Debug, Clone, Reflect, Asset)]
-pub struct PixelFont {
+pub struct ImageFont {
     pub layout: TextureAtlasLayout,
     pub texture: Handle<Image>,
     /// The glyph used to render `c` is contained in the part of the image
@@ -60,7 +60,7 @@ pub struct PixelFont {
     pub index_map: HashMap<char, usize>,
 }
 
-impl PixelFont {
+impl ImageFont {
     fn from_char_map(texture: Handle<Image>, size: UVec2, char_map: &HashMap<char, Rect>) -> Self {
         let mut index_map = HashMap::new();
         let mut layout = TextureAtlasLayout::new_empty(size.as_vec2());
@@ -83,11 +83,11 @@ impl PixelFont {
     }
 }
 
-/// Text rendered using a [`PixelFont`].
+/// Text rendered using an [`ImageFont`].
 #[derive(Debug, Clone, Reflect, Default, Component)]
-pub struct PixelFontText {
+pub struct ImageFontText {
     pub text: String,
-    pub font: Handle<PixelFont>,
+    pub font: Handle<ImageFont>,
     /// If set, overrides the height the font is rendered at. This should be an
     /// integer multiple of the 'native' height if you want pixel accuracy,
     /// but we allow float values for things like animations.
@@ -95,16 +95,16 @@ pub struct PixelFontText {
 }
 
 /// All the components you need to actually render some text using
-/// `extol_pixel_font`.
+/// `extol_image_font`.
 ///
 /// NOTE: using exact integer coordinates for the transform can sometimes cause
 /// slight rendering issues. I'm not sure why.
 #[derive(Bundle, Default)]
-pub struct PixelFontBundle {
-    pub text: PixelFontText,
+pub struct ImageFontBundle {
+    pub text: ImageFontText,
     /// Can be used to set the anchor, flip_x, flip_y, etc. Note that the
     /// custom_size property will be recalculated based on
-    /// `PixelFontText::font_height`.
+    /// `ImageFontText::font_height`.
     pub sprite: Sprite,
     pub transform: Transform,
     pub global_transform: GlobalTransform,
@@ -115,24 +115,24 @@ pub struct PixelFontBundle {
     pub texture: Handle<Image>,
 }
 
-/// System that renders each [`PixelFontText`] into the corresponding
+/// System that renders each [`ImageFontText`] into the corresponding
 /// `Handle<Image>`. This is mainly for use with sprites.
 pub fn render_sprites(
-    mut query: Query<(&PixelFontText, &mut Handle<Image>), Changed<PixelFontText>>,
-    pixel_fonts: Res<Assets<PixelFont>>,
+    mut query: Query<(&ImageFontText, &mut Handle<Image>), Changed<ImageFontText>>,
+    image_fonts: Res<Assets<ImageFont>>,
     mut images: ResMut<Assets<Image>>,
 ) {
-    for (pixel_font_text, mut image_handle) in &mut query {
-        debug!("Rendering [{}]", pixel_font_text.text);
+    for (image_font_text, mut image_handle) in &mut query {
+        debug!("Rendering [{}]", image_font_text.text);
         // don't need to clear the old image since it'll be no longer live
-        match render_text(&pixel_font_text, pixel_fonts.as_ref(), images.as_ref()) {
+        match render_text(&image_font_text, image_fonts.as_ref(), images.as_ref()) {
             Ok(image) => {
                 *image_handle = images.add(image);
             }
             Err(e) => {
                 error!(
-                    "Error when rendering pixel font text {:?}: {}",
-                    pixel_font_text, e
+                    "Error when rendering image font text {:?}: {}",
+                    image_font_text, e
                 );
             }
         }
@@ -140,24 +140,24 @@ pub fn render_sprites(
 }
 
 #[cfg(feature = "ui")]
-/// System that renders each [`PixelFontText`] into the corresponding
+/// System that renders each [`ImageFontText`] into the corresponding
 /// [`UiImage`].
 pub fn render_ui_images(
-    mut query: Query<(&PixelFontText, &mut UiImage), Changed<PixelFontText>>,
-    pixel_fonts: Res<Assets<PixelFont>>,
+    mut query: Query<(&ImageFontText, &mut UiImage), Changed<ImageFontText>>,
+    image_fonts: Res<Assets<ImageFont>>,
     mut images: ResMut<Assets<Image>>,
 ) {
-    for (pixel_font_text, mut ui_image) in &mut query {
-        debug!("Rendering [{}]", pixel_font_text.text);
+    for (image_font_text, mut ui_image) in &mut query {
+        debug!("Rendering [{}]", image_font_text.text);
         // don't need to clear the old image since it'll be no longer live
-        match render_text(&pixel_font_text, pixel_fonts.as_ref(), images.as_ref()) {
+        match render_text(&image_font_text, image_fonts.as_ref(), images.as_ref()) {
             Ok(image) => {
                 ui_image.texture = images.add(image);
             }
             Err(e) => {
                 error!(
-                    "Error when rendering pixel font text {:?}: {}",
-                    pixel_font_text, e
+                    "Error when rendering image font text {:?}: {}",
+                    image_font_text, e
                 );
             }
         }
@@ -167,11 +167,11 @@ pub fn render_ui_images(
 /// Errors that can show up during rendering.
 #[derive(Debug, Error)]
 #[non_exhaustive]
-pub enum PixelFontPluginError {
+pub enum ImageFontPluginError {
     #[error("failed to convert image to DynamicImage: {0}")]
     ImageConversion(String),
-    #[error("PixelFont asset not loaded")]
-    MissingPixelFontAsset,
+    #[error("ImageFont asset not loaded")]
+    MissingImageFontAsset,
     #[error("Font texture asset not loaded")]
     MissingTextureAsset,
     #[error("internal error")]
@@ -180,7 +180,7 @@ pub enum PixelFontPluginError {
     CopyFailure(#[from] ImageError),
     #[error("couldn't parse on-disk representation")]
     ParseFailure(#[from] ron::error::SpannedError),
-    #[error("i/o error when loading pixel font")]
+    #[error("i/o error when loading image font")]
     Io(#[from] std::io::Error),
     #[error("failed to load asset")]
     LoadDirect(#[from] LoadDirectError),
@@ -188,23 +188,23 @@ pub enum PixelFontPluginError {
     Other(String),
 }
 
-/// Renders the text inside the [`PixelFontText`] to a single output image. You
+/// Renders the text inside the [`ImageFontText`] to a single output image. You
 /// don't need to use this if you're using the built-in functionality, but if
 /// you want to use this for some other custom plugin/system, you can call this.
 pub fn render_text(
-    pixel_font_text: &PixelFontText,
-    pixel_fonts: &Assets<PixelFont>,
+    image_font_text: &ImageFontText,
+    image_fonts: &Assets<ImageFont>,
     images: &Assets<Image>,
-) -> Result<Image, PixelFontPluginError> {
-    let pixel_font = pixel_fonts
-        .get(&pixel_font_text.font)
-        .ok_or(PixelFontPluginError::MissingPixelFontAsset)?;
+) -> Result<Image, ImageFontPluginError> {
+    let image_font = image_fonts
+        .get(&image_font_text.font)
+        .ok_or(ImageFontPluginError::MissingImageFontAsset)?;
     let font_texture = images
-        .get(&pixel_font.texture)
-        .ok_or(PixelFontPluginError::MissingTextureAsset)?;
-    let layout = &pixel_font.layout;
+        .get(&image_font.texture)
+        .ok_or(ImageFontPluginError::MissingTextureAsset)?;
+    let layout = &image_font.layout;
 
-    let text = pixel_font.filter_string(&pixel_font_text.text);
+    let text = image_font.filter_string(&image_font_text.text);
 
     if text.is_empty() {
         return Ok(Image::new(
@@ -223,13 +223,13 @@ pub fn render_text(
     // as wide as the sum of all characters, as tall as the tallest one
     let height = text
         .chars()
-        .map(|c| layout.textures[pixel_font.index_map[&c]].height())
+        .map(|c| layout.textures[image_font.index_map[&c]].height())
         .reduce(f32::max)
         .unwrap()
         .ceil() as u32;
     let width = text
         .chars()
-        .map(|c| layout.textures[pixel_font.index_map[&c]].width())
+        .map(|c| layout.textures[image_font.index_map[&c]].width())
         .reduce(|a, b| a + b)
         .unwrap()
         .ceil() as u32;
@@ -240,11 +240,11 @@ pub fn render_text(
         font_texture.height(),
         font_texture.data.as_slice(),
     )
-    .ok_or(PixelFontPluginError::UnknownError)?;
+    .ok_or(ImageFontPluginError::UnknownError)?;
 
     let mut x = 0;
     for c in text.chars() {
-        let rect = layout.textures[pixel_font.index_map[&c]];
+        let rect = layout.textures[image_font.index_map[&c]];
         let width = rect.width().ceil() as u32;
         let height = rect.height().ceil() as u32;
         output_image.copy_from(
@@ -255,7 +255,7 @@ pub fn render_text(
         x += width;
     }
 
-    if let Some(font_height) = pixel_font_text.font_height {
+    if let Some(font_height) = image_font_text.font_height {
         let width = output_image.width() as f32 * font_height / output_image.height() as f32;
         output_image = imageops::resize(
             &output_image,
@@ -281,38 +281,38 @@ pub fn render_text(
     Ok(bevy_image)
 }
 
-/// Marks any text where the underlying [`PixelFont`] asset has changed as
+/// Marks any text where the underlying [`ImageFont`] asset has changed as
 /// dirty, which will cause it to be rerendered.
 pub fn mark_changed_fonts_as_dirty(
-    mut events: EventReader<AssetEvent<PixelFont>>,
-    mut query: Query<&mut PixelFontText>,
+    mut events: EventReader<AssetEvent<ImageFont>>,
+    mut query: Query<&mut ImageFontText>,
 ) {
     let changed_fonts: HashSet<_> = events
         .read()
         .filter_map(|event| match event {
             AssetEvent::Modified { id } | AssetEvent::LoadedWithDependencies { id } => {
-                info!("Pixel font {id} finished loading; marking as dirty");
+                info!("Image font {id} finished loading; marking as dirty");
                 Some(id)
             }
             _ => None,
         })
         .collect();
-    for mut pixel_font_text in &mut query {
-        if changed_fonts.contains(&pixel_font_text.font.id()) {
-            pixel_font_text.set_changed();
+    for mut image_font_text in &mut query {
+        if changed_fonts.contains(&image_font_text.font.id()) {
+            image_font_text.set_changed();
         }
     }
 }
 
-/// Human-readable way to specify where the characters in a pixel font are.
+/// Human-readable way to specify where the characters in an image font are.
 #[derive(Serialize, Deserialize)]
-pub enum PixelFontLayout {
+pub enum ImageFontLayout {
     /// Interprets the string as a "grid" and slices up the input image
     /// accordingly. Leading and trailing newlines are stripped, but spaces
     /// are not (since your font might use them as padding).
     ///
     /// ```rust
-    /// # use extol_pixel_font::*;
+    /// # use extol_image_font::*;
     /// # use bevy::prelude::*;
     /// // note that we have a raw string *inside* a raw string here...
     /// let s = r###"
@@ -327,7 +327,7 @@ pub enum PixelFontLayout {
     /// "##)
     ///
     /// "###;
-    /// let layout = ron::from_str::<PixelFontLayout>(s).unwrap();
+    /// let layout = ron::from_str::<ImageFontLayout>(s).unwrap();
     /// ```
     Automatic(String),
 
@@ -336,7 +336,7 @@ pub enum PixelFontLayout {
     /// will look like
     ///
     /// ```rust
-    /// # use extol_pixel_font::*;
+    /// # use extol_image_font::*;
     /// let s = r#"
     /// ManualMonospace(
     ///   size: (4, 8),
@@ -346,7 +346,7 @@ pub enum PixelFontLayout {
     ///   }
     /// )
     /// "#;
-    /// ron::from_str::<PixelFontLayout>(s).unwrap();
+    /// ron::from_str::<ImageFontLayout>(s).unwrap();
     /// ```
     ManualMonospace {
         size: UVec2,
@@ -356,23 +356,23 @@ pub enum PixelFontLayout {
     /// Fully specifies the bounds of each character. The most general case.
     ///
     /// ```rust
-    /// # use extol_pixel_font::*;
+    /// # use extol_image_font::*;
     /// let s = r#"
     /// Manual({
     /// 'a': URect(min: (0, 0), max: (10, 20)),
     /// 'b': URect(min: (20, 20), max: (25, 25))
     /// })
     /// "#;
-    /// ron::from_str::<PixelFontLayout>(s).unwrap();
+    /// ron::from_str::<ImageFontLayout>(s).unwrap();
     /// ```
     Manual(HashMap<char, URect>),
 }
 
-impl PixelFontLayout {
+impl ImageFontLayout {
     /// Given the image size, returns a map from each codepoint to its location.
     fn to_char_map(self, size: UVec2) -> HashMap<char, Rect> {
         match self {
-            PixelFontLayout::Automatic(str) => {
+            ImageFontLayout::Automatic(str) => {
                 // trim() removes whitespace, which is not what we want!
                 let str = str.trim_start_matches('\n').trim_end_matches('\n');
                 let mut rect_map = HashMap::new();
@@ -414,7 +414,7 @@ impl PixelFontLayout {
                 }
                 rect_map
             }
-            PixelFontLayout::ManualMonospace { size, coords } => coords
+            ImageFontLayout::ManualMonospace { size, coords } => coords
                 .into_iter()
                 .map(|(c, top_left)| {
                     (
@@ -423,7 +423,7 @@ impl PixelFontLayout {
                     )
                 })
                 .collect(),
-            PixelFontLayout::Manual(urect_map) => urect_map
+            ImageFontLayout::Manual(urect_map) => urect_map
                 .into_iter()
                 .map(|(k, v)| (k, v.as_rect()))
                 .collect(),
@@ -431,30 +431,30 @@ impl PixelFontLayout {
     }
 }
 
-/// On-disk representation of a PixelFont, optimized to make it easy for humans
-/// to write these. See the docs for [`PixelFontLayout`]'s variants for
+/// On-disk representation of a ImageFont, optimized to make it easy for humans
+/// to write these. See the docs for [`ImageFontLayout`]'s variants for
 /// information on how to write the syntax, or [the example font's RON asset].
 ///
-/// [the example font's RON asset](https://github.com/deifactor/extol_pixel_font/blob/main/assets/example_font.pixel_font.ron)
+/// [the example font's RON asset](https://github.com/deifactor/extol_image_font/blob/main/assets/example_font.image_font.ron)
 #[derive(Serialize, Deserialize)]
-pub struct PixelFontDiskFormat {
+pub struct ImageFontDiskFormat {
     pub image: PathBuf,
-    pub layout: PixelFontLayout,
+    pub layout: ImageFontLayout,
 }
 
-/// Loader for [`PixelFont`]s.
+/// Loader for [`ImageFont`]s.
 #[derive(Debug, Default)]
-pub struct PixelFontLoader;
+pub struct ImageFontLoader;
 
-impl AssetLoader for PixelFontLoader {
-    type Asset = PixelFont;
+impl AssetLoader for ImageFontLoader {
+    type Asset = ImageFont;
 
-    // We could use PixelFontDiskFormat, but an AssetLoader's settings has to
+    // We could use ImageFontDiskFormat, but an AssetLoader's settings has to
     // imnplement `Default`, and there's no sensible default value for that
     // type.
     type Settings = ();
 
-    type Error = PixelFontPluginError;
+    type Error = ImageFontPluginError;
 
     fn load<'a>(
         &'a self,
@@ -465,14 +465,14 @@ impl AssetLoader for PixelFontLoader {
         Box::pin(async move {
             let mut str = String::new();
             reader.read_to_string(&mut str).await?;
-            let disk_format: PixelFontDiskFormat = ron::from_str(&str)?;
+            let disk_format: ImageFontDiskFormat = ron::from_str(&str)?;
 
             // need the image loaded immediately because we need its size
             let image = load_context
                 .load_direct(disk_format.image)
                 .await?
                 .take::<Image>()
-                .ok_or(PixelFontPluginError::Other(
+                .ok_or(ImageFontPluginError::Other(
                     "loaded asset wasn't an image".into(),
                 ))?;
 
@@ -480,11 +480,11 @@ impl AssetLoader for PixelFontLoader {
             let char_map = disk_format.layout.to_char_map(size);
             let image_handle = load_context.add_labeled_asset("texture".into(), image);
 
-            Ok(PixelFont::from_char_map(image_handle, size, &char_map))
+            Ok(ImageFont::from_char_map(image_handle, size, &char_map))
         })
     }
 
     fn extensions(&self) -> &[&str] {
-        &["pixel_font.ron"]
+        &["image_font.ron"]
     }
 }

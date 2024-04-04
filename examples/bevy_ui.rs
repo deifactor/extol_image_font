@@ -1,14 +1,14 @@
 /// Shows use of the plugin with bevy_ui.
 use bevy::{input::common_conditions::input_just_pressed, prelude::*};
 use bevy_asset_loader::prelude::{AssetCollection, AssetCollectionApp};
-use extol_pixel_font::{PixelFont, PixelFontPlugin, PixelFontText};
+use extol_image_font::{ImageFont, ImageFontPlugin, ImageFontText};
 
 #[derive(Default, Debug, Resource)]
 struct VowsJudged(u32);
 
 fn main() {
     App::new()
-        .add_plugins((DefaultPlugins, PixelFontPlugin))
+        .add_plugins((DefaultPlugins, ImageFontPlugin))
         .init_collection::<DemoAssets>()
         .insert_resource(ClearColor(Color::rgb(0.2, 0.2, 0.2)))
         .init_resource::<VowsJudged>()
@@ -26,8 +26,8 @@ fn main() {
 
 #[derive(AssetCollection, Resource)]
 struct DemoAssets {
-    #[asset(path = "example_font.pixel_font.ron")]
-    pixel_font: Handle<PixelFont>,
+    #[asset(path = "example_font.image_font.ron")]
+    image_font: Handle<ImageFont>,
 }
 
 #[derive(Component)]
@@ -57,9 +57,9 @@ fn spawn_ui(mut commands: Commands, assets: Res<DemoAssets>) {
                     },
                     ..default()
                 },
-                PixelFontText {
+                ImageFontText {
                     text: "Press SPACE to judge!".into(),
-                    font: assets.pixel_font.clone(),
+                    font: assets.image_font.clone(),
                     font_height: Some(72.0),
                 },
             ));
@@ -76,9 +76,9 @@ fn spawn_ui(mut commands: Commands, assets: Res<DemoAssets>) {
             },
             ..default()
         },
-        PixelFontText {
+        ImageFontText {
             text: "vows".into(),
-            font: assets.pixel_font.clone(),
+            font: assets.image_font.clone(),
             font_height: Some(72.0),
         },
     ));
@@ -88,6 +88,6 @@ fn judge(mut vows: ResMut<VowsJudged>) {
     vows.0 += 1;
 }
 
-fn update_vows_node(vows: Res<VowsJudged>, mut node: Query<&mut PixelFontText, With<VowsNode>>) {
+fn update_vows_node(vows: Res<VowsJudged>, mut node: Query<&mut ImageFontText, With<VowsNode>>) {
     node.single_mut().text = format!("Vows judged: {}", vows.0);
 }
