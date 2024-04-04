@@ -199,14 +199,15 @@ pub fn render_text(
     let text = image_font.filter_string(&image_font_text.text);
 
     if text.is_empty() {
+        // can't make a 0x0 image, so make a 1x1 transparent black pixel
         return Ok(Image::new(
             Extent3d {
-                width: 0,
-                height: 0,
+                width: 1,
+                height: 1,
                 depth_or_array_layers: 1,
             },
             TextureDimension::D2,
-            vec![],
+            vec![0, 0, 0, 0],
             TextureFormat::Rgba8UnormSrgb,
             RenderAssetUsages::RENDER_WORLD,
         ));
