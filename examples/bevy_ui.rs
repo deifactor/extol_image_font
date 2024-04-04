@@ -89,5 +89,7 @@ fn judge(mut vows: ResMut<VowsJudged>) {
 }
 
 fn update_vows_node(vows: Res<VowsJudged>, mut node: Query<&mut ImageFontText, With<VowsNode>>) {
-    node.single_mut().text = format!("Vows judged: {}", vows.0);
+    if vows.is_changed() {
+        node.single_mut().text = format!("Vows judged: {}", vows.0);
+    }
 }
