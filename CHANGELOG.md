@@ -1,5 +1,5 @@
 # Release notes
 
-## Version 0.3.1 (2024-03-06)
+## Version 0.4.0 (2024-04-04)
 
-- First public release; 0.3.0 and prior are not on Cargo.
+- First public release; prior versions are not on Cargo.
