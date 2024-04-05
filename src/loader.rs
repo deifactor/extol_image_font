@@ -188,11 +188,16 @@ impl AssetLoader for ImageFontLoader {
             let disk_format: ImageFontSettings = ron::from_str(&str)?;
 
             // need the image loaded immediately because we need its size
+            let image_path = load_context
+                .path()
+                .parent()
+                .expect("asset's parent is None?")
+                .join(disk_format.image.clone());
             let image = load_context
-                .load_direct(disk_format.image.clone())
+                .load_direct(image_path.clone())
                 .await?
                 .take::<Image>()
-                .ok_or(ImageFontLoadError::NotAnImage(disk_format.image))?;
+                .ok_or(ImageFontLoadError::NotAnImage(image_path))?;
 
             let size = image.size();
             let char_map = disk_format.layout.into_char_map(size);
